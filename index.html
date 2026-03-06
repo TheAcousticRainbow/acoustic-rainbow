@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lyric Viewer</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: #13131a;
+    --accent: #a855f7;
+    --accent2: #6366f1;
+    --text: #f1f0f5;
+    --muted: #6b6880;
+    --border: #2a2838;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .band-photo {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    object-position: center top;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  h1 {
+    font-size: 1.1rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px 36px;
+    max-width: 600px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 0 60px #a855f720;
+  }
+  .song-title {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+  }
+  .lyric {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.3s;
+  }
+  .lyric.fade { opacity: 0; }
+  .counter {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 20px;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 32px;
+    align-items: center;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.15s;
+  }
+  .btn-nav {
+    background: var(--border);
+    color: var(--text);
+    padding: 12px 18px;
+    font-size: 1.1rem;
+  }
+  .btn-nav:hover { background: #3a3850; }
+  .btn-random {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    padding: 12px 20px;
+    flex: 1;
+  }
+  .btn-random:hover { opacity: 0.85; transform: scale(1.02); }
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 28px 0 20px;
+  }
+  .bottom-row {
+    display: flex;
+    gap: 10px;
+  }
+  .btn-stream {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .btn-stream:hover { opacity: 0.85; transform: scale(1.02); }
+  .btn-spotify { background: #1DB954; color: #000; }
+  .btn-apple { background: #fc3c44; color: #fff; }
+  .btn-lyrics {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 10px 16px;
+    font-size: 0.8rem;
+  }
+  .btn-lyrics:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-more {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    padding: 13px;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+  .btn-more:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: #000000cc;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .modal h2 {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+    color: var(--accent);
+  }
+  .modal .album { font-size: 0.8rem; color: var(--muted); margin-bottom: 24px; }
+  .modal pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    line-height: 1.8;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .btn-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: var(--border);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .btn-close:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img class="band-photo" src="band.jpg" alt="The Acoustic Rainbow" id="bandPhoto">
+  <h1>🎵 The Acoustic Rainbow</h1>
+</div>
+
+<div class="card">
+  <div class="song-title" id="songTitle">Song Title</div>
+  <div class="lyric" id="lyricDisplay">Loading...</div>
+  <div class="counter" id="counter"></div>
+
+  <div class="controls">
+    <button class="btn-nav" id="prevBtn" onclick="navigate(-1)">&#8592;</button>
+    <button class="btn-random" onclick="randomLyric()">✦ Random Lyric</button>
+    <button class="btn-nav" id="nextBtn" onclick="navigate(1)">&#8594;</button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="bottom-row">
+    <a id="spotifyBtn" class="btn-stream btn-spotify" href="#" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      Spotify
+    </a>
+    <a id="appleBtn" class="btn-stream btn-apple" href="#" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.994 6.124a9.23 9.23 0 00-.24-2.19c-.317-1.31-1.062-2.31-2.18-3.043a5.022 5.022 0 00-1.877-.726 10.496 10.496 0 00-1.564-.15c-.04-.003-.083-.01-.124-.013H5.986c-.152.01-.303.017-.455.026C4.786.07 4.043.15 3.34.428 2.004.958 1.04 1.88.475 3.208A4.9 4.9 0 00.16 4.527c-.055.47-.079.943-.08 1.417-.002 4.658 0 9.316 0 13.974 0 .167.008.334.02.5.048.665.173 1.314.499 1.91.45.828 1.122 1.43 1.97 1.818.664.302 1.368.43 2.088.47.124.007.248.013.372.013H19.95c.11 0 .22-.006.33-.012a6.97 6.97 0 001.86-.387c1.083-.41 1.843-1.15 2.276-2.225.197-.487.285-.996.308-1.517.012-.283.016-.567.016-.85V6.125zm-8.54 9.13a3.508 3.508 0 01-1.375.333 3.68 3.68 0 01-1.54-.343l-.112-.05a3.532 3.532 0 00-1.428-.303 3.464 3.464 0 00-1.4.298l-.124.057a3.654 3.654 0 01-1.494.34 3.614 3.614 0 01-2.671-1.164c-.853-.952-1.292-2.165-1.292-3.604 0-1.283.392-2.368 1.164-3.224a3.59 3.59 0 012.717-1.248 3.9 3.9 0 011.676.39l.12.055a3.07 3.07 0 001.3.313c.437 0 .88-.102 1.317-.305l.126-.057a3.874 3.874 0 011.657-.384 3.57 3.57 0 012.7 1.225c-.232.176-.443.372-.628.588a3.285 3.285 0 00-.783 2.128c0 .795.223 1.513.663 2.137.394.566.887.965 1.47 1.194a4.59 4.59 0 01-.663 1.624zM15.47 5.43a3.35 3.35 0 01-.838 2.197 2.785 2.785 0 01-2.2 1.04 3.025 3.025 0 01.039-.404 3.536 3.536 0 01.906-2.18 3.358 3.358 0 012.07-1.088c.014.145.023.29.023.435z"/></svg>
+      Apple Music
+    </a>
+    <button class="btn-lyrics" onclick="openModal()">Full Lyrics ↗</button>
+  </div>
+
+  <a href="https://www.theacousticrainbow.co.uk" target="_blank" class="btn-more">🌈 See and Hear More</a>
+</div>
+
+<p style="margin-top:24px;font-size:0.72rem;color:var(--muted);text-align:center;letter-spacing:0.05em;">© Jamie Duddy 2026. All rights reserved.</p>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOnBg(event)">
+  <div class="modal">
+    <button class="btn-close" onclick="closeModal()">✕</button>
+    <h2 id="modalTitle"></h2>
+    <div class="modal-album" id="modalAlbum"></div>
+    <pre id="modalLyrics"></pre>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SONG DATA — replace with your real songs!
+// ============================================================
+const songs = [
+  {
+    title: "Still Life",
+    album: "The Acoustic Rainbow",
+    spotifyUrl: "https://open.spotify.com/track/1IkPnk6fVFesLfNY0iWt1O?si=cea3b771b138427c",
+    appleUrl: "https://music.apple.com/us/song/still-life/1324666636",
+    lyrics: [
+      "Can you see the sun? In the falling rain",
+      "Can you feel the love? Hidden in the pain",
+      "Don't ever stop to worry if things are going wrong",
+      "The rhymes may all be broken but still fit in the song",
+      "Can you see the stars? When the sky is grey",
+      "But they'll still be there every single day",
+      "Don't ever stop to worry if things are going right",
+      "The darker is the shadow the brighter shines the light",
+      "Still life deep inside where still waters flow",
+      "So walk on down that freedom road",
+      "There's no need to run, there's nowhere to go",
+      "Can you see the truth? Inside the lie",
+      "See the open door hidden in the sky",
+      "Don't ever stop to worry you're living all alone",
+      "There'll always be a stranger there to bring you home",
+      "This world is an illusion, don't let it bring you down",
+      "The night is only waiting till morning comes around"
+    ],
+    fullLyrics: `Can you see the sun?
+In the falling rain
+Can you feel the love?
+Hidden in the pain
+
+Don't ever stop to worry
+If things are going wrong
+The rhymes may all be broken
+But still fit in the song
+
+Can you see the stars?
+When the sky is grey
+But they'll still be there
+Every single day
+
+Don't ever stop to worry
+If things are going right
+The darker is the shadow
+The brighter shines the light
+
+Still life deep inside
+Where still waters flow
+So walk on down that freedom road
+There's no need to run
+There's nowhere to go
+
+Can you see the truth?
+Inside the lie
+See the open door
+Hidden in the sky
+
+Don't ever stop to worry
+You're living all alone
+There'll always be a stranger
+There to bring you home
+
+This world is an illusion
+Don't let it bring you down
+The night is only waiting
+Till morning comes around`
+  }
+  ,{
+    title: "Sunnyside",
+    album: "Sunnyside (Single)",
+    spotifyUrl: "https://open.spotify.com/track/5KWrLRfsxP9wTEnqOMm2ys?si=8ea70d21c6e143fa",
+    appleUrl: "https://music.apple.com/us/song/sunnyside/1858874397",
+    lyrics: [
+      "My world has a golden glow in the sky",
+      "It's a feeling that you get from flying so high",
+      "Never knew the moon could be so bright",
+      "Never thought that I'd been hypnotised by the colour of light",
+      "City streets are paved with lies",
+      "The morning air gets in your eyes",
+      "City life was taking all my time",
+      "Building castles in the air and chasing starlight everywhere",
+      "Now I'm on the sunny side of life",
+      "Your world has a yellow cellophane sun",
+      "There's a rainbow in the sky but the colours have run",
+      "Living in a land of make believe",
+      "Wanting all the things you'll never need till the damage is done",
+      "City skies are filled with pain",
+      "Tears that fall in scalding rain",
+      "Burning holes into the blackest night",
+      "Take me to the riverside, all my senses open wide",
+      "Now I'm on the sunny side of life",
+      "I got everything I'll ever need",
+      "My imagination's living free",
+      "No-one else on earth I'd rather be",
+      "City lights are neon bright, scar the darkness into white",
+      "They've become the colour of our times",
+      "But I don't need them anymore",
+      "Turned my back on open doors",
+      "Now I'm on the sunny side of life"
+    ],
+    fullLyrics: `My world has a golden glow in the sky
+It's a feeling that you get from flying so high
+Never knew the moon could be so bright
+Never thought that I'd been hypnotised
+By the colour of light
+
+City streets are paved with lies
+The morning air gets in your eyes
+City life was taking all my time
+Building castles in the air
+And chasing starlight everywhere
+Now I'm on the sunny side of life
+
+Your world has a yellow cellophane sun
+There's a rainbow in the sky but the colours have run
+Living in a land of make believe
+Wanting all the things you'll never need
+Till the damage is done
+
+City skies are filled with pain
+Tears that fall in scalding rain
+Burning holes into the blackest night
+Take me to the riverside
+All my senses open wide
+Now I'm on the sunny side of life
+
+I got everything I'll ever need
+My imagination's living free
+No-one else on earth I'd rather be
+
+City lights are neon bright
+Scar the darkness into white
+They've become the colour of our times
+But I don't need them anymore
+Turned my back on open doors
+Now I'm on the sunny side of life`
+  }
+  ,{
+    title: "Show the World",
+    album: "The Acoustic Rainbow",
+    spotifyUrl: "https://open.spotify.com/track/0UDk6JioL1QxQoHBVtSJFY?si=e3342acc7cb940db",
+    appleUrl: "https://music.apple.com/us/song/show-the-world/1324664724",
+    lyrics: [
+      "You're just a child waiting to fly",
+      "On the edge of the world waving goodbye",
+      "Your time has come today",
+      "Everything new waiting for you",
+      "Reach for the stars over the moon",
+      "They're here to light your way",
+      "But if somebody brings you down",
+      "Keep your head, don't turn around",
+      "Cos only you can do the things you do",
+      "Show the world who you are",
+      "Find the dream, chase a star",
+      "And when you feel you can't make your mark",
+      "Remember every fire comes from just a spark",
+      "So many stars brighten the sky",
+      "So many fade, so many die and believe their race is run",
+      "Well maybe you'll find all of your dreams",
+      "And maybe you won't cos fortune seems to smile on only some",
+      "But if the world won't hear you sing",
+      "You will still have everything",
+      "Cos love is still the greatest gift of all",
+      "There's a brand new angel brighter than the sun",
+      "Feel my heart in overload cos she's the one"
+    ],
+    fullLyrics: `You're just a child waiting to fly
+On the edge of the world waving goodbye
+Your time has come today
+Everything new waiting for you
+Reach for the stars over the moon
+They're here to light your way
+
+But if somebody brings you down
+Keep your head, don't turn around
+Cos only you can do the things you do
+
+Show the world
+Who you are
+Find the dream
+Chase a star
+And when you feel
+You can't make your mark
+Remember every fire comes from just a spark
+Show the world
+
+So many stars brighten the sky
+So many fade, so many die
+And believe their race is run
+Well maybe you'll find all of your dreams
+And maybe you won't cos fortune seems to smile
+On only some
+
+But if the world won't hear you sing
+You will still have everything
+Cos love is still the greatest gift of all
+
+There's a brand new angel
+Brighter than the sun
+Feel my heart in overload cos she's the one`
+  }
+  ,{
+    title: "I Believe in Love",
+    album: "New Life",
+    spotifyUrl: "https://open.spotify.com/track/34gtrx4ffSaXVnEzgeJHWC?si=f683ed22795843a5",
+    appleUrl: "https://music.apple.com/us/song/i-believe-in-love/1481028952",
+    lyrics: [
+      "I don't read the morning lies, I believe in love",
+      "I don't see the stormy skies, I believe in love",
+      "I don't believe the fantasy, I believe in love",
+      "Truth is here for all to see, I believe in love",
+      "I believe in miracles, in a world of cynicals",
+      "There's a life that's spiritual",
+      "Walking down the path of life, I believe in love",
+      "Stepping stones in black and white, I believe in love",
+      "Take your time, make up your mind, I believe in love",
+      "Choose the sight and lead the blind, I believe in love",
+      "I believe with innocence we can make a difference",
+      "We can open heaven's gate, there's no time to wait",
+      "Living on the edge of time, rising seas and waves of crime",
+      "We can leave it all behind, we can rise above",
+      "I don't live in Hollywood, I believe in love",
+      "I wouldn't even if I could, I believe in love",
+      "I'll build my house with straw and wood, I believe in love",
+      "Tinsel town will all fall down, I believe in love"
+    ],
+    fullLyrics: `I don't read the morning lies
+I believe in love
+I don't see the stormy skies
+I believe in love
+I don't believe the fantasy
+I believe in love
+Truth is here for all to see
+I believe in love
+
+I believe in miracles
+In a world of cynicals
+There's a life that's spiritual
+
+Walking down the path of life
+I believe in love
+Stepping stones in black and white
+I believe in love
+Take your time, make up your mind
+I believe in love
+Choose the sight and lead the blind
+I believe in love
+
+I believe with innocence
+We can make a difference
+We can open heaven's gate
+There's no time to wait
+
+Living on the edge of time
+Rising seas and waves of crime
+We can leave it all behind
+We can rise above
+
+I don't live in Hollywood
+I believe in love
+I wouldn't even if I could
+I believe in love
+I'll build my house with straw and wood
+I believe in love
+Tinsel town will all fall down, I believe in love`
+  }
+];
+
+// ============================================================
+// State
+let currentSong = 0;
+let currentLine = 0;
+let allLyrics = []; // flat list of {songIdx, lineIdx}
+
+function buildIndex() {
+  allLyrics = [];
+  songs.forEach((s, si) => s.lyrics.forEach((_, li) => allLyrics.push({si, li})));
+}
+
+function randomLyric() {
+  const r = Math.floor(Math.random() * allLyrics.length);
+  currentSong = allLyrics[r].si;
+  currentLine = allLyrics[r].li;
+  showWithFade();
+}
+
+function navigate(dir) {
+  // Find current position in flat index
+  let pos = allLyrics.findIndex(x => x.si === currentSong && x.li === currentLine);
+  pos = (pos + dir + allLyrics.length) % allLyrics.length;
+  currentSong = allLyrics[pos].si;
+  currentLine = allLyrics[pos].li;
+  showWithFade();
+}
+
+function showWithFade() {
+  const el = document.getElementById('lyricDisplay');
+  el.classList.add('fade');
+  setTimeout(() => {
+    render();
+    el.classList.remove('fade');
+  }, 200);
+}
+
+function render() {
+  const song = songs[currentSong];
+  document.getElementById('songTitle').textContent = `${song.title} — ${song.album}`;
+  document.getElementById('lyricDisplay').textContent = `"${song.lyrics[currentLine]}"`;
+
+  // counter: global position
+  let pos = allLyrics.findIndex(x => x.si === currentSong && x.li === currentLine);
+  document.getElementById('counter').textContent = `Lyric ${pos + 1} of ${allLyrics.length}`;
+
+  // Streaming links
+  const sp = document.getElementById('spotifyBtn');
+  const ap = document.getElementById('appleBtn');
+  sp.href = song.spotifyUrl;
+  ap.href = song.appleUrl;
+}
+
+function openModal() {
+  const song = songs[currentSong];
+  document.getElementById('modalTitle').textContent = song.title;
+  document.getElementById('modalAlbum').textContent = song.album;
+  document.getElementById('modalLyrics').textContent = song.fullLyrics;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+// Init
+buildIndex();
+randomLyric();
+</script>
+</body>
+</html>
+			
